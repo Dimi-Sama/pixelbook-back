@@ -4,10 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Table(name = "mangas")
@@ -23,11 +22,22 @@ public class Manga {
     private String title;
     private String author;
     private String coverUrl;
+    @Column(columnDefinition = "TEXT")
     private String synopsis;
+    private Long malId;
+    private String startDate;
+    private String endDate;
     
+    @JsonIgnore
     @OneToMany(mappedBy = "manga", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Volume> volumes = new ArrayList<>();
+    
+    // Plus besoin de ces relations directes qui sont maintenant gérées via Volume
+    @JsonIgnore
+    @Transient
     private List<Content> contents = new ArrayList<>();
     
-    @ManyToMany(mappedBy = "mangas")
-    private Set<ShopCart> shopCarts = new HashSet<>();
+    @JsonIgnore
+    @Transient
+    private List<ShopCart> shopCarts = new ArrayList<>();
 } 

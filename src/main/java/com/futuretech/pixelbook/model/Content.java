@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import java.util.Date;
 
 @Entity
@@ -19,11 +20,12 @@ public class Content {
     
     @ManyToOne
     @JoinColumn(name = "bookshelf_id")
+    @JsonBackReference
     private Bookshelf bookshelf;
     
     @ManyToOne
-    @JoinColumn(name = "manga_id")
-    private Manga manga;
+    @JoinColumn(name = "volume_id")
+    private Volume volume;
     
     @Temporal(TemporalType.TIMESTAMP)
     private Date addedAt;

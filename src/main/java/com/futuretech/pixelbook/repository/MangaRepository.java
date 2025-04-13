@@ -14,4 +14,7 @@ public interface MangaRepository extends JpaRepository<Manga, Long> {
     List<Manga> findByTitleContainingIgnoreCase(String keyword);
     List<Manga> findByAuthorContainingIgnoreCase(String keyword);
     List<Manga> findBySynopsisContainingIgnoreCase(String keyword);
+    
+    // Ajout de la méthode pour chercher par malId
+    Optional<Manga> findByMalId(Long malId);
 } 
