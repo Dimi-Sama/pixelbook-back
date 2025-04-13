@@ -20,7 +20,15 @@ build:
 test:
   stage: test
   script:
-    - mvn test
+    - mvn test -Dspring.profiles.active=test
+  artifacts:
+    when: on_failure
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+    paths:
+      - target/surefire-reports/
+    expire_in: 1 week
 
 package:
   stage: package
