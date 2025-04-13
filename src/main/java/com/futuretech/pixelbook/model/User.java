@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
+import java.util.Objects;
 
 @Entity
 @Table(name = "users")
@@ -26,8 +29,17 @@ public class User {
     private Long skinId;
     
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    @JsonIgnore
     private Bookshelf bookshelf;
     
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    @JsonIgnore
     private ShopCart shopCart;
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, email);
+    }
 } 

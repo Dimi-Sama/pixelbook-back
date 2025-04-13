@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,13 +21,14 @@ public class ShopCart {
     
     @OneToOne
     @JoinColumn(name = "user_id")
+    @JsonBackReference
     private User user;
     
     @ManyToMany
     @JoinTable(
-        name = "shop_cart_manga",
+        name = "shop_cart_volume",
         joinColumns = @JoinColumn(name = "shop_cart_id"),
-        inverseJoinColumns = @JoinColumn(name = "manga_id")
+        inverseJoinColumns = @JoinColumn(name = "volume_id")
     )
-    private Set<Manga> mangas = new HashSet<>();
+    private Set<Volume> volumes = new HashSet<>();
 } 
