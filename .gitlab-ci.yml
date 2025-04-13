@@ -15,7 +15,7 @@ stages:
 build:
   stage: build
   script:
-    - mvn compile
+    - mvn clean compile
 
 test:
   stage: test
@@ -33,7 +33,7 @@ test:
 package:
   stage: package
   script:
-    - mvn package
+    - mvn package -DskipTests
   artifacts:
     paths:
       - target/*.jar
