@@ -1,12 +1,13 @@
 package com.futuretech.pixelbook.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.futuretech.pixelbook.model.*;
 import com.futuretech.pixelbook.repository.*;
 import com.futuretech.pixelbook.service.JikanService;
+import com.futuretech.pixelbook.util.PasswordEncoder;
 
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,16 +17,20 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import com.futuretech.pixelbook.dto.LoginDTO;
 
 import java.util.Date;
 
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
 public class UserControllerTest {
@@ -59,6 +64,9 @@ public class UserControllerTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private User testUser;
     private Bookshelf testBookshelf;
@@ -321,5 +329,84 @@ public class UserControllerTest {
     void testGetUserBookshelfNotFound() throws Exception {
         mockMvc.perform(get("/api/users/999999/bookshelf"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testLoginSuccess() throws Exception {
+        // Créer un utilisateur avec mot de passe haché
+        User user = new User();
+        user.setEmail("login@example.com");
+        String rawPassword = "testPassword123";
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setCreatedAt(new Date());
+        userRepository.save(user);
+
+        // Créer le DTO de login
+        LoginDTO loginDTO = new LoginDTO();
+        loginDTO.setEmail("login@example.com");
+        loginDTO.setPassword(rawPassword);
+
+        mockMvc.perform(post("/api/users/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginDTO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email", is("login@example.com")))
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.password").doesNotExist()); // Le mot de passe ne doit pas être renvoyé
+    }
+
+    @Test
+    void testLoginWrongPassword() throws Exception {
+        // Créer un utilisateur avec mot de passe haché
+        User user = new User();
+        user.setEmail("login@example.com");
+        user.setPassword(passwordEncoder.encode("correctPassword"));
+        user.setCreatedAt(new Date());
+        userRepository.save(user);
+
+        // Créer le DTO de login avec mauvais mot de passe
+        LoginDTO loginDTO = new LoginDTO();
+        loginDTO.setEmail("login@example.com");
+        loginDTO.setPassword("wrongPassword");
+
+        mockMvc.perform(post("/api/users/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginDTO)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void testLoginUserNotFound() throws Exception {
+        LoginDTO loginDTO = new LoginDTO();
+        loginDTO.setEmail("nonexistent@example.com");
+        loginDTO.setPassword("anyPassword");
+
+        mockMvc.perform(post("/api/users/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginDTO)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testCreateUserWithHashedPassword() throws Exception {
+        User newUser = new User();
+        newUser.setEmail("newhashed@example.com");
+        String rawPassword = "password123";
+        newUser.setPassword(rawPassword);
+
+        MvcResult result = mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(newUser)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email", is("newhashed@example.com")))
+                .andReturn();
+
+        // Vérifier que le mot de passe est bien haché dans la base de données
+        String responseJson = result.getResponse().getContentAsString();
+        User createdUser = objectMapper.readValue(responseJson, User.class);
+        User savedUser = userRepository.findById(createdUser.getId()).orElseThrow();
+        
+        assertNotEquals(rawPassword, savedUser.getPassword());
+        assertTrue(passwordEncoder.matches(rawPassword, savedUser.getPassword()));
     }
 } 
