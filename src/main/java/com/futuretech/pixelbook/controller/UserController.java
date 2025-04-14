@@ -13,6 +13,9 @@ import com.futuretech.pixelbook.repository.UserRepository;
 import com.futuretech.pixelbook.repository.VolumeRepository;
 import com.futuretech.pixelbook.repository.MangaRepository;
 import com.futuretech.pixelbook.service.JikanService;
+import com.futuretech.pixelbook.dto.LoginDTO;
+import com.futuretech.pixelbook.util.PasswordEncoder;
+import com.futuretech.pixelbook.util.JwtUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -63,6 +66,12 @@ public class UserController {
 
     @Autowired
     private JikanService jikanService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -154,6 +163,10 @@ public class UserController {
         // Définir la date de création
         user.setCreatedAt(new Date());
         
+        // Hacher le mot de passe
+        String hashedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashedPassword);
+        
         // Sauvegarder l'utilisateur
         User savedUser = userRepository.save(user);
         
@@ -179,6 +192,9 @@ public class UserController {
         return userRepository.findById(id)
                 .map(existingUser -> {
                     user.setId(id);
+                    // Hacher le mot de passe
+                    String hashedPassword = passwordEncoder.encode(user.getPassword());
+                    user.setPassword(hashedPassword);
                     return ResponseEntity.ok(userRepository.save(user));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -580,6 +596,45 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur lors de la récupération de la bibliothèque: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Connecter un utilisateur", description = "Authentifie un utilisateur avec son email et mot de passe")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Connexion réussie"),
+        @ApiResponse(responseCode = "401", description = "Identifiants invalides"),
+        @ApiResponse(responseCode = "404", description = "Utilisateur non trouvé")
+    })
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
+        try {
+            Optional<User> userOpt = userRepository.findByEmail(loginDTO.getEmail());
+            
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Utilisateur non trouvé");
+            }
+            
+            User user = userOpt.get();
+            
+            if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Mot de passe incorrect");
+            }
+            
+            String token = jwtUtil.generateToken(user.getEmail());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("id", user.getId());
+            response.put("email", user.getEmail());
+            response.put("createdAt", user.getCreatedAt());
+            response.put("skinId", user.getSkinId());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Erreur lors de la connexion: " + e.getMessage());
         }
     }
 } 
