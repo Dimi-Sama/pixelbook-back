@@ -6,6 +6,9 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
+import com.futuretech.pixelbook.model.User;
+import com.futuretech.pixelbook.repository.UserRepository;
+
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -54,5 +57,18 @@ public class JwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public User getUserFromToken(String token, UserRepository userRepository) {
+        String email = getEmailFromToken(token);
+        return userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé pour le token"));
+    }
+
+    public String extractTokenFromHeader(String authorizationHeader) {
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        throw new RuntimeException("Token non trouvé dans le header");
     }
 } 

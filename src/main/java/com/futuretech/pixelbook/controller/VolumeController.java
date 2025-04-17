@@ -21,7 +21,18 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/volumes")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+    origins = "http://localhost:5173",
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    }
+)
 @Tag(name = "Volumes", description = "API pour gérer les volumes de manga")
 public class VolumeController {
 

@@ -3,6 +3,7 @@ package com.futuretech.pixelbook.controller;
 import com.futuretech.pixelbook.model.Bookshelf;
 import com.futuretech.pixelbook.model.Content;
 import com.futuretech.pixelbook.model.Volume;
+import com.futuretech.pixelbook.model.ReadStatusResponse;
 import com.futuretech.pixelbook.repository.BookshelfRepository;
 import com.futuretech.pixelbook.repository.ContentRepository;
 import com.futuretech.pixelbook.repository.VolumeRepository;
@@ -25,7 +26,18 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/contents")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+    origins = "http://localhost:5173",
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    }
+)
 @Tag(name = "Contenus", description = "API pour gérer les contenus des bibliothèques")
 public class ContentController {
 
@@ -60,7 +72,8 @@ public class ContentController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
     
-    @Operation(summary = "Obtenir les contenus d'une bibliothèque", description = "Récupère tous les contenus associés à une bibliothèque spécifique")
+    @Operation(summary = "Obtenir les contenus d'une bibliothèque", 
+              description = "Récupère tous les contenus associés à une bibliothèque spécifique avec leur statut de lecture")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Liste des contenus récupérée avec succès")
     })
@@ -68,6 +81,32 @@ public class ContentController {
     public List<Content> getContentsByBookshelfId(
             @Parameter(description = "ID de la bibliothèque") @PathVariable Long bookshelfId) {
         return contentRepository.findByBookshelfId(bookshelfId);
+    }
+
+    @Operation(summary = "Obtenir le statut de lecture d'un volume", 
+              description = "Récupère le statut de lecture d'un volume spécifique dans une bibliothèque")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Statut de lecture récupéré avec succès"),
+        @ApiResponse(responseCode = "404", description = "Contenu non trouvé")
+    })
+    @GetMapping("/bookshelf/{bookshelfId}/volume/{volumeId}/read")
+    public ResponseEntity<ReadStatusResponse> getReadStatus(
+            @Parameter(description = "ID de la bibliothèque") @PathVariable Long bookshelfId,
+            @Parameter(description = "ID du volume") @PathVariable Long volumeId) {
+        
+        Content content = contentRepository.findByBookshelfIdAndVolumeId(bookshelfId, volumeId)
+                .orElse(null);
+                
+        if (content == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        ReadStatusResponse response = new ReadStatusResponse(
+            content.isRead(),
+            content.getReadAt()
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Ajouter un volume à une bibliothèque", description = "Ajoute un volume spécifique à une bibliothèque")
@@ -133,5 +172,60 @@ public class ContentController {
         
         contentRepository.deleteByBookshelfIdAndVolumeId(bookshelfId, volumeId);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Marquer un volume comme lu/non lu", 
+              description = "Met à jour le statut de lecture d'un volume dans une bibliothèque")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Statut de lecture mis à jour avec succès"),
+        @ApiResponse(responseCode = "404", description = "Contenu non trouvé")
+    })
+    @PutMapping("/bookshelf/{bookshelfId}/volume/{volumeId}/read/{status}")
+    public ResponseEntity<Content> updateReadStatus(
+            @Parameter(description = "ID de la bibliothèque") @PathVariable Long bookshelfId,
+            @Parameter(description = "ID du volume") @PathVariable Long volumeId,
+            @Parameter(description = "Statut de lecture (true/false)") @PathVariable boolean status) {
+        
+        Content content = contentRepository.findByBookshelfIdAndVolumeId(bookshelfId, volumeId)
+                .orElse(null);
+                
+        if (content == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        content.setRead(status);
+        content.setReadAt(status ? new Date() : null);
+        Content updatedContent = contentRepository.save(content);
+        
+        return ResponseEntity.ok(updatedContent);
+    }
+
+    @Operation(summary = "Obtenir le statut de lecture pour un utilisateur", 
+              description = "Récupère le statut de lecture d'un volume pour un utilisateur spécifique")
+    @GetMapping("/user/{userId}/volume/{volumeId}/read")
+    public ResponseEntity<ReadStatusResponse> getUserReadStatus(
+            @Parameter(description = "ID de l'utilisateur") @PathVariable Long userId,
+            @Parameter(description = "ID du volume") @PathVariable Long volumeId) {
+        
+        // Obtenir la bibliothèque de l'utilisateur
+        Optional<Bookshelf> bookshelf = bookshelfRepository.findByUserId(userId);
+        if (bookshelf.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        // Vérifier le statut de lecture
+        Content content = contentRepository.findByBookshelfIdAndVolumeId(bookshelf.get().getId(), volumeId)
+                .orElse(null);
+                
+        if (content == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        ReadStatusResponse response = new ReadStatusResponse(
+            content.isRead(),
+            content.getReadAt()
+        );
+        
+        return ResponseEntity.ok(response);
     }
 } 

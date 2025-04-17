@@ -22,7 +22,18 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/jikan")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+    origins = "http://localhost:5173",
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    }
+)
 @Tag(name = "Jikan API", description = "API pour interagir avec le service Jikan et gérer les mangas")
 public class JikanController {
 
