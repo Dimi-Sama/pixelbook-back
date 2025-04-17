@@ -23,7 +23,18 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/bookshelves")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+    origins = "http://localhost:5173",
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    }
+)
 @Tag(name = "Bibliothèques", description = "API pour gérer les bibliothèques des utilisateurs")
 public class BookshelfController {
 

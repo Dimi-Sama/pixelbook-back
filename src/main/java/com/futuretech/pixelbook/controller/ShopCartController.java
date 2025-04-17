@@ -24,7 +24,18 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/shopcarts")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+    origins = "http://localhost:5173",
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    }
+)
 @Tag(name = "Paniers", description = "API pour gérer les paniers d'achat")
 public class ShopCartController {
 

@@ -42,7 +42,18 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "*")
+@CrossOrigin(
+    origins = "http://localhost:5173",
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PUT,
+        RequestMethod.DELETE,
+        RequestMethod.OPTIONS
+    }
+)
 @Tag(name = "Utilisateurs", description = "API pour gérer les utilisateurs et leurs ressources")
 public class UserController {
 
@@ -199,6 +210,21 @@ public class UserController {
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @Operation(summary = "Mettre à jour le skin d'un utilisateur", description = "Met à jour le skin d'un utilisateur existant")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Skin mis à jour avec succès")
+    })
+    @PutMapping("/{id}/skin/{skinId}")
+    public ResponseEntity<User> updateUserSkin(@PathVariable Long id, @PathVariable Long skinId) {
+        return userRepository.findById(id)
+                .map(existingUser -> {
+                    existingUser.setSkinId(skinId);
+                    return ResponseEntity.ok(userRepository.save(existingUser));
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
 
     @Operation(summary = "Supprimer un utilisateur", description = "Supprime un utilisateur par son ID")
     @ApiResponses(value = {
@@ -635,6 +661,57 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body("Erreur lors de la connexion: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Créer un nouvel utilisateur", description = "Crée un nouvel utilisateur avec une bibliothèque et un panier")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Utilisateur créé avec succès")
+    })
+    @PostMapping("/register")
+    public ResponseEntity<User> registerUser(@RequestBody User user) {
+        // Hacher le mot de passe
+        String hashedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashedPassword);
+        
+        // Sauvegarder l'utilisateur
+        User savedUser = userRepository.save(user);
+        
+        // Créer et sauvegarder automatiquement une bibliothèque pour cet utilisateur
+        Bookshelf bookshelf = new Bookshelf();
+        bookshelf.setUser(savedUser);
+        bookshelfRepository.save(bookshelf);
+        
+        // Créer et sauvegarder automatiquement un panier pour cet utilisateur
+        ShopCart shopCart = new ShopCart();
+        shopCart.setUser(savedUser);
+        shopCartRepository.save(shopCart);
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+    }
+
+
+    @Operation(summary = "Obtenir les informations de l'utilisateur connecté", description = "Récupère les informations de l'utilisateur connecté")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Informations de l'utilisateur récupérées avec succès"),
+        @ApiResponse(responseCode = "401", description = "Erreur d'authentification")
+    })
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = jwtUtil.extractTokenFromHeader(authHeader);
+            User user = jwtUtil.getUserFromToken(token, userRepository);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", user.getId());
+            response.put("email", user.getEmail());
+            response.put("createdAt", user.getCreatedAt());
+            response.put("skinId", user.getSkinId());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body("Erreur d'authentification: " + e.getMessage());
         }
     }
 } 

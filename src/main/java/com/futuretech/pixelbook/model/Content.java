@@ -29,4 +29,9 @@ public class Content {
     
     @Temporal(TemporalType.TIMESTAMP)
     private Date addedAt;
+
+    private boolean read;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date readAt;
 } 
