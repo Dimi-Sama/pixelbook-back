@@ -1,0 +1,49 @@
+version: '3.8'
+
+networks:
+  pixel-net:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pixelbook-postgres
+    environment:
+      POSTGRES_DB: pixelbook
+      POSTGRES_USER: Excalibruh
+      POSTGRES_PASSWORD: Saber1234
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - pixel-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U Excalibruh -d pixelbook"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  pixelbook-api:
+    image: ${REGISTRY}/${IMAGE}:${VERSION:-latest}
+    container_name: pixelbook-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pixelbook
+      SPRING_DATASOURCE_USERNAME: Excalibruh
+      SPRING_DATASOURCE_PASSWORD: Saber1234
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: true
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: true
+    ports:
+      - "8055:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pixel-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data: 

@@ -35,4 +35,4 @@ build/
 ### App ###
 yt-dlp.exe
 /ffmpeg
-
+/downloads

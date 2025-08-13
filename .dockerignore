@@ -1,0 +1,16 @@
+target/
+!target/*.jar
+.git/
+.gitignore
+.gitlab-ci.yml
+README.md
+*.md
+.vscode/
+.idea/
+*.iml
+mvnw
+mvnw.cmd
+.mvn/
+downloads/
+ffmpeg/
+yt-dlp.exe 
