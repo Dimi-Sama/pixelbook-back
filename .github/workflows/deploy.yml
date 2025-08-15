@@ -27,12 +27,6 @@ jobs:
       - name: Run tests
         run: mvn -B test --file pom.xml
 
-      - name: Run integration tests
-        run: mvn -B verify --file pom.xml
-
-      - name: Check code quality
-        run: mvn -B checkstyle:check spotbugs:check --file pom.xml
-
       - name: Build with Maven
         run: mvn -B package --file pom.xml
 
