@@ -79,43 +79,53 @@ public class MusicController {
         
         logger.info("Dossier de sortie créé: {}", output.getParentFile().getAbsolutePath());
 
-        // Chemin absolu vers yt-dlp.exe
-        String ytDlpPath = workingDir + "/yt-dlp.exe";
-        logger.info("Chemin vers yt-dlp.exe: {}", ytDlpPath);
+        // Chemin vers yt-dlp selon l'OS
+        String os = System.getProperty("os.name").toLowerCase();
+        String ytDlpPath;
+        String ffmpegPath;
         
-        // Vérifier que yt-dlp.exe existe
+        if (os.contains("win")) {
+            // Windows - utilise yt-dlp.exe
+            ytDlpPath = workingDir + "/yt-dlp.exe";
+            ffmpegPath = workingDir + "/ffmpeg/bin/ffmpeg.exe";
+        } else {
+            // Linux/Mac - utilise yt-dlp depuis /usr/local/bin
+            ytDlpPath = "/usr/local/bin/yt-dlp";
+            ffmpegPath = "/usr/local/bin/ffmpeg";
+        }
+        
+        logger.info("Chemin vers yt-dlp: {}", ytDlpPath);
+        
+        // Vérifier que yt-dlp existe
         File ytDlpFile = new File(ytDlpPath);
         if (!ytDlpFile.exists()) {
-            logger.error("yt-dlp.exe n'existe pas à l'emplacement: {}", ytDlpPath);
+            logger.error("yt-dlp n'existe pas à l'emplacement: {}", ytDlpPath);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ByteArrayResource("yt-dlp.exe non trouvé".getBytes()));
+                    .body(new ByteArrayResource("yt-dlp non trouvé".getBytes()));
         }
         
-        // Chemin vers le dossier FFmpeg - ajustez selon votre structure
-        String ffmpegDir = workingDir + "/ffmpeg/bin";  // ou "/ffmpeg" si les exécutables sont directement dans ce dossier
-        
-        // Vérifier si les exécutables FFmpeg existent
-        File ffmpegExe = new File(ffmpegDir + "/ffmpeg.exe");
-        File ffprobeExe = new File(ffmpegDir + "/ffprobe.exe");
-        
-        if (!ffmpegExe.exists()) {
-            logger.error("ffmpeg.exe non trouvé à : {}", ffmpegExe.getAbsolutePath());
+        // Vérifier si FFmpeg existe
+        File ffmpegFile = new File(ffmpegPath);
+        if (!ffmpegFile.exists()) {
+            logger.error("FFmpeg non trouvé à : {}", ffmpegFile.getAbsolutePath());
         } else {
-            logger.info("ffmpeg.exe trouvé à : {}", ffmpegExe.getAbsolutePath());
-        }
-        
-        if (!ffprobeExe.exists()) {
-            logger.error("ffprobe.exe non trouvé à : {}", ffprobeExe.getAbsolutePath());
-        } else {
-            logger.info("ffprobe.exe trouvé à : {}", ffprobeExe.getAbsolutePath());
+            logger.info("FFmpeg trouvé à : {}", ffmpegFile.getAbsolutePath());
         }
         
         // Télécharger d'abord le fichier sans conversion
-        String downloadCommand = String.format("\"%s\" -o \"%s\" %s", 
-                                      ytDlpPath, webmFile.getAbsolutePath(), url);
-        logger.info("Commande de téléchargement : {}", downloadCommand);
+        ProcessBuilder downloadProcessBuilder;
         
-        ProcessBuilder downloadProcessBuilder = new ProcessBuilder("cmd", "/c", downloadCommand);
+        if (os.contains("win")) {
+            // Windows - utilise cmd
+            String downloadCommand = String.format("\"%s\" -o \"%s\" %s", 
+                                          ytDlpPath, webmFile.getAbsolutePath(), url);
+            logger.info("Commande de téléchargement Windows : {}", downloadCommand);
+            downloadProcessBuilder = new ProcessBuilder("cmd", "/c", downloadCommand);
+        } else {
+            // Linux/Mac - utilise directement la commande
+            logger.info("Commande de téléchargement Linux : {} -o {} {}", ytDlpPath, webmFile.getAbsolutePath(), url);
+            downloadProcessBuilder = new ProcessBuilder(ytDlpPath, "-o", webmFile.getAbsolutePath(), url);
+        }
         downloadProcessBuilder.redirectErrorStream(true);
         Process downloadProcess = downloadProcessBuilder.start();
         
@@ -149,7 +159,7 @@ public class MusicController {
         
         // Convertir le fichier webm en mp3 avec FFmpeg
         ProcessBuilder convertProcessBuilder = new ProcessBuilder(
-            ffmpegExe.getAbsolutePath(),
+            ffmpegPath,
             "-i", webmFile.getAbsolutePath(),
             "-vn", "-ab", "128k", "-ar", "44100", "-y", output.getAbsolutePath()
         );
@@ -223,16 +233,25 @@ public class MusicController {
         logger.info("Recherche YouTube pour: {}", query);
         
         try {
-            // Chemin absolu vers yt-dlp.exe
-            String workingDir = System.getProperty("user.dir");
-            String ytDlpPath = workingDir + "/yt-dlp.exe";
+            // Chemin vers yt-dlp selon l'OS
+            String os = System.getProperty("os.name").toLowerCase();
+            String ytDlpPath;
             
-            // Vérifier que yt-dlp.exe existe
+            if (os.contains("win")) {
+                // Windows - utilise yt-dlp.exe
+                String workingDir = System.getProperty("user.dir");
+                ytDlpPath = workingDir + "/yt-dlp.exe";
+            } else {
+                // Linux/Mac - utilise yt-dlp depuis /usr/local/bin
+                ytDlpPath = "/usr/local/bin/yt-dlp";
+            }
+            
+            // Vérifier que yt-dlp existe
             File ytDlpFile = new File(ytDlpPath);
             if (!ytDlpFile.exists()) {
-                logger.error("yt-dlp.exe n'existe pas à l'emplacement: {}", ytDlpPath);
+                logger.error("yt-dlp n'existe pas à l'emplacement: {}", ytDlpPath);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("yt-dlp.exe non trouvé");
+                        .body("yt-dlp non trouvé");
             }
             
             // Utilisez yt-dlp pour rechercher des vidéos

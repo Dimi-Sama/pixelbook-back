@@ -1,0 +1,73 @@
+name: Deploy PixelBook to VPS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Run tests
+        run: mvn -B test --file pom.xml
+
+      - name: Run integration tests
+        run: mvn -B verify --file pom.xml
+
+      - name: Check code quality
+        run: mvn -B checkstyle:check spotbugs:check --file pom.xml
+
+      - name: Build with Maven
+        run: mvn -B package --file pom.xml
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/deploy_key
+
+      - name: Build and Deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+        run: |
+          # Build Docker image
+          docker build -t pixelbook-api:latest .
+          
+          # Save image to tar file
+          docker save pixelbook-api:latest > pixelbook-api.tar
+          
+          # Test SSH connection
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key $VPS_USERNAME@$VPS_HOST "echo 'SSH connection successful'"
+          
+          # Create directory on VPS if it doesn't exist
+          ssh -i ~/.ssh/deploy_key $VPS_USERNAME@$VPS_HOST "mkdir -p ~/pixelbook"
+          
+          # Copy files to VPS
+          scp -i ~/.ssh/deploy_key pixelbook-api.tar docker-compose.yml $VPS_USERNAME@$VPS_HOST:~/pixelbook/
+          
+          # Deploy on VPS
+          ssh -i ~/.ssh/deploy_key $VPS_USERNAME@$VPS_HOST "cd ~/pixelbook && \
+            docker load < pixelbook-api.tar && \
+            docker-compose down && \
+            docker-compose up -d" 

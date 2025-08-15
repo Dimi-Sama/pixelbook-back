@@ -24,10 +24,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   pixelbook-api:
-    image: ${REGISTRY}/${IMAGE}:${VERSION:-latest}
-    container_name: pixelbook-app
+    image: pixelbook-api:latest
+    container_name: pixelbook-api
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pixelbook
       SPRING_DATASOURCE_USERNAME: Excalibruh
@@ -43,7 +44,10 @@ services:
         condition: service_healthy
     networks:
       - pixel-net
+    volumes:
+      - downloads_data:/app/downloads
     restart: unless-stopped
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  downloads_data: 
